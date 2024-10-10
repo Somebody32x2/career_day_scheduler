@@ -7,7 +7,8 @@ pub struct Student {
     pub(crate) first_period: String,
     pub(crate) student_id: u32,
     pub(crate) grade: u8,
-    pub(crate) preferences: Vec<u16>
+    pub(crate) preferences: Vec<u16>,
+    pub(crate) classes: Vec<u16>
 }
 
 impl Student {

@@ -21,6 +21,7 @@ pub fn read_students(path: String) -> Vec<Student> {
                 student_id: record[5].parse().unwrap(),
                 grade: record[6].parse().unwrap(),
                 preferences: record.iter().skip(6).map(|x| x.parse().unwrap()).collect(),
+                classes: Vec::new(),
             };
             students.push(student);
         }
@@ -30,7 +31,7 @@ pub fn read_students(path: String) -> Vec<Student> {
 
 pub fn read_classes(path: String) -> ClassOutput {
     let mut class_output = ClassOutput {
-        num_sessions: -1,
+        num_sessions: u16::MAX,
         min_students: -1,
         max_students: -1,
         classes: Vec::new(),
@@ -58,8 +59,8 @@ pub fn read_classes(path: String) -> ClassOutput {
         }
     }
 
-    if class_output.num_sessions == -1 {
-        class_output.num_sessions = class_output.classes.len() as i32;
+    if class_output.num_sessions == u16::MAX {
+        class_output.num_sessions = class_output.classes.len() as u16;
     }
     // assert!(class_output.num_sessions > 0, "Number of sessions invalid or not found");
     assert!(class_output.min_students >= 0, "Minimum number of students invalid or not found");
