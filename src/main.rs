@@ -79,12 +79,43 @@ fn main() {
             }
         }
     }
-    println!("{:?}", schedule);
+
+    // Check if the schedule is valid
+    // println!("{:?}", schedule);
     // Print the number of students in each class
-    for (class_id, periods) in &schedule {
-        for (i, period) in periods.iter().enumerate() {
-            println!("Class {} has {} students in period {}", class_id, period.len(), i);
+    // for (class_id, periods) in &schedule {
+    //     for (i, period) in periods.iter().enumerate() {
+    //         println!("Class {} has {} students in period {}", class_id, period.len(), i);
+    //     }
+    // }
+    println!("Schedule is valid: {}", misc::schedule_valid(&schedule, min_students_per_session, max_students_per_session));
+    
+    // Check for classes with too few students, and assign students, taking from the most filled classes first, and the lowest preference students to be in that class, then just the fullest classes
+    // least happy in their current class + most happy in the new class + taking from the fullest classes first
+
+    // Check if each class is less than the minimum number of students
+    for class_id in &schedule.keys().copied().collect::<Vec<u16>>() {
+        for period_num in 0..(NUM_PERIODS as usize) {
+            if schedule[class_id][period_num].len() < min_students_per_session as usize {
+                // Run student.move_score for each student and sort by move_score, then assign the required number of students to the class
+                students.sort_by_key(|student| student.move_score(*class_id, period_num, schedule[&student.classes[period_num]][period_num].len() as i32, min_students_per_session, max_students_per_session));
+                let mut student_taking_ndx = 0;
+                while schedule[class_id][period_num].len() < min_students_per_session as usize {
+                    let mut student = &mut students[student_taking_ndx];
+                    if student.classes[period_num] != *class_id && schedule[&student.classes[period_num]][period_num].len() > min_students_per_session as usize {
+                        schedule.get_mut(&student.classes[period_num]).unwrap()[period_num].retain(|x| x != &student.student_id);
+                        // println!("Moved student {} from class {} to class {} p.{} ({})", student.student_id, student.classes[period_num], class_id, period_num, schedule[class_id][period_num].len());
+                        student.classes[period_num] = *class_id;
+                        schedule.get_mut(&class_id).unwrap()[period_num].push(student.student_id);
+                        
+                    }
+                    student_taking_ndx += 1;
+
+                }
+            }
         }
     }
+
+    // Check if the schedule is valid
     println!("Schedule is valid: {}", misc::schedule_valid(&schedule, min_students_per_session, max_students_per_session));
 }
