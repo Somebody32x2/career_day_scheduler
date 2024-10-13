@@ -20,7 +20,7 @@ pub fn read_students(path: String) -> Vec<Student> {
                 first_period: record[4].to_string(),
                 student_id: record[5].parse().unwrap(),
                 grade: record[6].parse().unwrap(),
-                preferences: record.iter().skip(6).map(|x| x.parse().unwrap()).collect(),
+                preferences: record.iter().skip(7).map(|x| x.parse().unwrap()).collect(),
                 classes: Vec::new(),
             };
             students.push(student);
@@ -123,6 +123,36 @@ pub fn write_student_output(classes: &Vec<Class>, students: &mut Vec<Student>, n
             record.push(class.id.to_string());
             record.push(class.teacher.clone());
         }
+        wtr.write_record(&record).unwrap();
+    }
+    wtr.flush().unwrap();
+}
+pub fn write_student_satisfaction_details(students: &Vec<Student>, num_periods: u16, path: String) {
+    // Write student name, id, grade pref ids, got ids, and satisfaction
+    let mut wtr = csv::Writer::from_path(path).unwrap();
+    let mut header = vec!["FIRST_NAME".to_string(), "LAST_NAME".to_string(), "STUDENT_ID".to_string(), "GRADE".to_string()];
+    for i in 0..students[0].preferences.len() {
+        header.push(format!("SEL{}_ID", i));
+    }
+    for i in 0..num_periods {
+        header.push(format!("PER{}_ID", i));
+    }
+    header.push("SATISFACTION".to_string());
+    wtr.write_record(&header).unwrap();
+    for student in students {
+        let mut record = vec![
+            student.first_name.clone(),
+            student.last_name.clone(),
+            student.student_id.to_string(),
+            student.grade.to_string(),
+        ];
+        for pref in &student.preferences {
+            record.push(pref.to_string());
+        }
+        for class in &student.classes {
+            record.push(class.to_string());
+        }
+        record.push(student.satisfaction().to_string());
         wtr.write_record(&record).unwrap();
     }
     wtr.flush().unwrap();

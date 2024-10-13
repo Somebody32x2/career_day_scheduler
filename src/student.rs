@@ -49,4 +49,14 @@ impl Student {
         // Double to increase resolution, round to nearest integer for sort_by_key
         (score * 2.0).round() as i32
     }
+
+    pub fn satisfaction(&self) -> f32 {
+        let mut satisfaction = 0f32;
+        for (_i, class_id) in self.classes.iter().enumerate() {
+            assert_ne!(*class_id, 0xffff);
+            let pref = self.preferences.iter().position(|&x| x == *class_id).unwrap_or(self.preferences.len() + 2) as i32;
+            satisfaction += (self.preferences.len() as i32 - pref) as f32;
+        }
+        satisfaction
+    }
 }

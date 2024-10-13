@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
-use crate::read_write_data::{check_valid_input, write_student_output};
+use crate::read_write_data::{check_valid_input, write_student_output, write_student_satisfaction_details};
+use crate::test::test_satisfaction;
 
 mod misc;
 mod read_write_data;
 mod student;
+mod test;
 
 const STUDENT_FILE: &str = "students.csv";
 const CLASSES_FILE: &str = "sessions.csv";
@@ -15,7 +17,7 @@ fn main() {
     println!("Read {} students", students.len());
     let min_timestamp = students.iter().map(|x| x.timestamp).min().unwrap();
     students.sort_by_key(|a| a.sort_order(min_timestamp));
-
+    students.reverse();
     let class_output = read_write_data::read_classes(CLASSES_FILE.to_string());
     println!("Read {} classes", class_output.classes.len());
 
@@ -124,4 +126,8 @@ fn main() {
     println!("Schedule is valid: {}", misc::schedule_valid(&schedule, &students, min_students_per_session, max_students_per_session));
 
     write_student_output(&class_output.classes, &mut students, NUM_PERIODS, "output.csv".to_string());
+
+    // write_student_satisfaction_details(&students, NUM_PERIODS, "satisfaction.csv".to_string());
+    
+    test_satisfaction(&students);
 }
