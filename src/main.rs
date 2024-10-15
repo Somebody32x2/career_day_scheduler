@@ -95,7 +95,7 @@ fn main() {
     //         println!("Class {} has {} students in period {}", class_id, period.len(), i);
     //     }
     // }
-    
+
     println!("Schedule is valid: {}", misc::schedule_valid(&schedule, &students, min_students_per_session, max_students_per_session));
 
     // Check for classes with too few students, and assign students, taking from the most filled classes first, and the lowest preference students to be in that class, then just the fullest classes
@@ -122,12 +122,32 @@ fn main() {
         }
     }
 
+    // Mostly unnecessary, but for jr/sr students, if new vacancies allows them to move to a higher preference class this period, while maintaining class min/max do so
+    for student in students.iter_mut() {
+        if student.grade >= 11 {
+            for period_num in 0..(NUM_PERIODS as usize) {
+                let cur_pref = student.preferences.iter().position(|&x| x == student.classes[period_num]).unwrap_or(0);
+                // Check if the student can move to a higher preference class
+                for choice in &student.preferences[0..cur_pref] {
+                    // Check if the student is not already in this class, and the class has space
+                    if student.classes.iter().position(|x| x == choice).is_none() && schedule[choice][period_num].len() < max_students_per_session as usize && schedule[choice][period_num].len() > min_students_per_session as usize {
+                        schedule.get_mut(&student.classes[period_num]).unwrap()[period_num].retain(|x| x != &student.student_id);
+                        student.classes[period_num] = *choice;
+                        schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     // Check if the schedule is valid
-    println!("Schedule is valid: {}", misc::schedule_valid(&schedule, &students, min_students_per_session, max_students_per_session));
+    println!("\x1B[1;4;36mSchedule is valid: {}\x1B[0m", misc::schedule_valid(&schedule, &students, min_students_per_session, max_students_per_session));
+    assert!(misc::schedule_valid(&schedule, &students, min_students_per_session, max_students_per_session));
 
     write_student_output(&class_output.classes, &mut students, NUM_PERIODS, "output.csv".to_string());
 
-    // write_student_satisfaction_details(&students, NUM_PERIODS, "satisfaction.csv".to_string());
-    
+    // write_student_satisfaction_details(&students, NUM_PERIODS, "satisfaction2.csv".to_string());
+
     test_satisfaction(&students);
 }

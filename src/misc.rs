@@ -53,6 +53,17 @@ pub fn schedule_valid(schedule: &HashMap<u16, Vec<Vec<u32>>>, i_students: &Vec<S
             }
         }
     }
+    // Check that no student repeats a class
+    for (student_id, period_classes) in students {
+        let mut classes: Vec<u16> = Vec::new();
+        for period_class in period_classes {
+            if classes.contains(&period_class.class_id) {
+                println!("Student {} is assigned to class {} multiple times", student_id, period_class.class_id);
+                return false;
+            }
+            classes.push(period_class.class_id);
+        }
+    }
     true
 }
 

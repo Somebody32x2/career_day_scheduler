@@ -88,20 +88,23 @@ pub fn check_valid_input(classes: &Vec<Class>, students: &Vec<Student>) {
 }
 pub fn write_student_output(classes: &Vec<Class>, students: &mut Vec<Student>, num_periods: u16, mut path: String) {
     // Check if the path already exists, and if so prompt to overwrite, if not, add the current time to the file name
-    if std::path::Path::new(&path).exists() {
-        println!("File already exists, overwrite? (y/n)");
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
-        if input.trim() != "y" {
-            // Add the current date and time to the file name, before the extension
-            let now = chrono::Local::now();
-            let now_str = now.format("%Y-%m-%d_%H-%M-%S").to_string();
-            let path_parts: Vec<&str> = path.split('.').collect();
-            // Combine all parts except the last one, then add the current date and time, then add the last part
-            path = path_parts.iter().take(path_parts.len() - 1).map(|x|*x).collect::<Vec<&str>>().join(".") + "_" + &now_str + "." + path_parts.last().unwrap();
-        }
-    }
-    let mut wtr = csv::Writer::from_path(path).unwrap();
+    // if std::path::Path::new(&path).exists() { TODO: UNCOMMENT FOR PROD
+    //     println!("File already exists, overwrite? (y/n)");
+    //     // let mut input = String::new();
+    //     
+    //     // std::io::stdin().read_line(&mut input).unwrap();
+    //     if input.trim() != "y" {
+    //         // Add the current date and time to the file name, before the extension
+    //         let now = chrono::Local::now();
+    //         let now_str = now.format("%Y-%m-%d_%H-%M-%S").to_string();
+    //         let path_parts: Vec<&str> = path.split('.').collect();
+    //         // Combine all parts except the last one, then add the current date and time, then add the last part
+    //         path = path_parts.iter().take(path_parts.len() - 1).map(|x|*x).collect::<Vec<&str>>().join(".") + "_" + &now_str + "." + path_parts.last().unwrap();
+    //     }
+    // }
+    let mut wtr = csv::WriterBuilder::new().flexible(true).from_path(path).unwrap();
+    let mut preheader = vec!["NUM_STUDENTS".to_string(), students.len().to_string()];
+    wtr.write_record(&preheader).unwrap();
     let mut header: Vec<String> = vec!["FIRST_NAME".to_string(), "LAST_NAME".to_string(), "HR_TEACH".to_string(), "FIRST_PERIOD".to_string(), "STUDENT_ID".to_string(), "GRADE".to_string()];
     for i in 0..num_periods {
         header.push(format!("SEL{}_ID", i));
