@@ -39,23 +39,51 @@ fn main() {
         student.classes = vec![0xffff; NUM_PERIODS as usize];
     }
 
+    let aggressive_seniority_priority: bool = false; // TODO: make a prompt/cli option for prod
+
 
     // 1st, Assign all students to their choices, ensuring valid state
-    // let mut ndx = 1;
-    // let students_len = students.len();
-    for _class_assignment_iteration in 0..NUM_PERIODS {
+    if !aggressive_seniority_priority {
+        'period: for _class_assignment_iteration in 0..NUM_PERIODS {
+            'student: for student in students.iter_mut() {
+
+                // Assign the student to the first available period of their first choice (which hasn't been already used) with available space
+                'choice: for choice in &student.preferences {
+                    if student.classes.contains(choice) { continue 'choice; } // Ensure the student isn't already assigned to this class
+                    // Check if each class has space
+                    for period_num in 0..schedule[choice].len() {
+                        // If the class has space, and the student is free, assign them to the class
+                        if schedule[choice][period_num].len() < max_students_per_session as usize && student.classes[period_num] == 0xffff {
+                            schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
+                            student.classes[period_num] = *choice;
+                            if !aggressive_seniority_priority {
+                                continue 'student; // We found a period for this student, may proceed with giving the next student a period
+                            } else {
+                                continue 'choice;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
         'student: for student in students.iter_mut() {
-            // ndx += 1;
-            // Assign the student to the first available period of their first choice (which hasn't been already used) with available space
-            'choice: for choice in &student.preferences {
-                if student.classes.contains(choice) { continue 'choice; } // Ensure the student isn't already assigned to this class
-                // Check if each class has space
-                for period_num in 0..schedule[choice].len() {
-                    // If the class has space, and the student is free, assign them to the class
-                    if schedule[choice][period_num].len() < max_students_per_session as usize && student.classes[period_num] == 0xffff {
-                        schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
-                        student.classes[period_num] = *choice;
-                        continue 'student; // We found a period for this student, may proceed with giving the next student a period
+            'period: for _class_assignment_iteration in 0..NUM_PERIODS {
+                // Assign the student to the first available period of their first choice (which hasn't been already used) with available space
+                'choice: for choice in &student.preferences {
+                    if student.classes.contains(choice) { continue 'choice; } // Ensure the student isn't already assigned to this class
+                    // Check if each class has space
+                    for period_num in 0..schedule[choice].len() {
+                        // If the class has space, and the student is free, assign them to the class
+                        if schedule[choice][period_num].len() < max_students_per_session as usize && student.classes[period_num] == 0xffff {
+                            schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
+                            student.classes[period_num] = *choice;
+                            if !aggressive_seniority_priority {
+                                continue 'student; // We found a period for this student, may proceed with giving the next student a period
+                            } else {
+                                continue 'choice;
+                            }
+                        }
                     }
                 }
             }
@@ -76,7 +104,7 @@ fn main() {
                 // let random_class_id = &(class_ids[random::<u32>() as usize % class_ids.len()]);
                 let class_id = *schedule.iter().filter(|x| !student.classes.contains(x.0)).min_by_key(|x| x.1[period_num].len()).unwrap().0;
                 // if the class has space, and the student hasn't had this class yet, assign them to the class (redundant check but just in case ig)
-                if schedule[&class_id][period_num].len()+1 < max_students_per_session as usize && !student.classes.contains(&class_id) {
+                if schedule[&class_id][period_num].len() + 1 < max_students_per_session as usize && !student.classes.contains(&class_id) {
                     schedule.get_mut(&class_id).unwrap()[period_num].push(student.student_id);
                     student.classes[period_num] = class_id;
                     // continue 'student;
@@ -124,21 +152,21 @@ fn main() {
 
     // Mostly unnecessary, but for jr/sr students, if new vacancies allows them to move to a higher preference class this period, while maintaining class min/max do so
     for student in students.iter_mut() {
-        if student.grade >= 11 {
-            for period_num in 0..(NUM_PERIODS as usize) {
-                let cur_pref = student.preferences.iter().position(|&x| x == student.classes[period_num]).unwrap_or(0);
-                // Check if the student can move to a higher preference class
-                for choice in &student.preferences[0..cur_pref] {
-                    // Check if the student is not already in this class, and the class has space
-                    if student.classes.iter().position(|x| x == choice).is_none() && schedule[choice][period_num].len() < max_students_per_session as usize && schedule[choice][period_num].len() > min_students_per_session as usize {
-                        schedule.get_mut(&student.classes[period_num]).unwrap()[period_num].retain(|x| x != &student.student_id);
-                        student.classes[period_num] = *choice;
-                        schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
-                        break;
-                    }
+        // if student.grade >= 11 {
+        for period_num in 0..(NUM_PERIODS as usize) {
+            let cur_pref = student.preferences.iter().position(|&x| x == student.classes[period_num]).unwrap_or(0);
+            // Check if the student can move to a higher preference class
+            for choice in &student.preferences[0..cur_pref] {
+                // Check if the student is not already in this class, and the class has space
+                if student.classes.iter().position(|x| x == choice).is_none() && schedule[choice][period_num].len() < max_students_per_session as usize && schedule[choice][period_num].len() > min_students_per_session as usize {
+                    schedule.get_mut(&student.classes[period_num]).unwrap()[period_num].retain(|x| x != &student.student_id);
+                    student.classes[period_num] = *choice;
+                    schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
+                    break;
                 }
             }
         }
+        // }
     }
 
     // Check if the schedule is valid
