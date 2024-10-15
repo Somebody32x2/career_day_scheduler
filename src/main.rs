@@ -39,56 +39,33 @@ fn main() {
         student.classes = vec![0xffff; NUM_PERIODS as usize];
     }
 
-    let aggressive_seniority_priority: bool = false; // TODO: make a prompt/cli option for prod
+    let aggressive_seniority_priority: bool = true; // TODO: make a prompt/cli option for prod
 
 
     // 1st, Assign all students to their choices, ensuring valid state
-    if !aggressive_seniority_priority {
-        'period: for _class_assignment_iteration in 0..NUM_PERIODS {
-            'student: for student in students.iter_mut() {
-
-                // Assign the student to the first available period of their first choice (which hasn't been already used) with available space
-                'choice: for choice in &student.preferences {
-                    if student.classes.contains(choice) { continue 'choice; } // Ensure the student isn't already assigned to this class
-                    // Check if each class has space
-                    for period_num in 0..schedule[choice].len() {
-                        // If the class has space, and the student is free, assign them to the class
-                        if schedule[choice][period_num].len() < max_students_per_session as usize && student.classes[period_num] == 0xffff {
-                            schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
-                            student.classes[period_num] = *choice;
-                            if !aggressive_seniority_priority {
-                                continue 'student; // We found a period for this student, may proceed with giving the next student a period
-                            } else {
-                                continue 'choice;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    } else {
+    'period: for _class_assignment_iteration in 0..NUM_PERIODS {
         'student: for student in students.iter_mut() {
-            'period: for _class_assignment_iteration in 0..NUM_PERIODS {
-                // Assign the student to the first available period of their first choice (which hasn't been already used) with available space
-                'choice: for choice in &student.preferences {
-                    if student.classes.contains(choice) { continue 'choice; } // Ensure the student isn't already assigned to this class
-                    // Check if each class has space
-                    for period_num in 0..schedule[choice].len() {
-                        // If the class has space, and the student is free, assign them to the class
-                        if schedule[choice][period_num].len() < max_students_per_session as usize && student.classes[period_num] == 0xffff {
-                            schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
-                            student.classes[period_num] = *choice;
-                            if !aggressive_seniority_priority {
-                                continue 'student; // We found a period for this student, may proceed with giving the next student a period
-                            } else {
-                                continue 'choice;
-                            }
+
+            // Assign the student to the first available period of their first choice (which hasn't been already used) with available space
+            'choice: for choice in &student.preferences {
+                if student.classes.contains(choice) { continue 'choice; } // Ensure the student isn't already assigned to this class
+                // Check if each class has space
+                for period_num in 0..schedule[choice].len() {
+                    // If the class has space, and the student is free, assign them to the class
+                    if schedule[choice][period_num].len() < max_students_per_session as usize && student.classes[period_num] == 0xffff {
+                        schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
+                        student.classes[period_num] = *choice;
+                        if !aggressive_seniority_priority {
+                            continue 'student; // We found a period for this student, may proceed with giving the next student a period
+                        } else {
+                            continue 'choice;
                         }
                     }
                 }
             }
         }
     }
+
 
     // let class_ids = class_output.classes.iter().map(|x| x.id).collect::<Vec<u16>>();
 
