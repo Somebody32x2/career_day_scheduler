@@ -1,6 +1,9 @@
 use crate::misc::{Class, ClassOutput};
+use crate::NUM_PERIODS;
 use crate::student::Student;
-
+pub const NUM_PREFERENCES: usize = 6;
+pub const MISSING_PREFERENCE: u16 = 0xfffe;
+pub const UNASSIGNED_CLASSS: u16 = 0xffff;
 pub fn read_students(path: String) -> Vec<Student> {
     let mut students = Vec::new();
     // Make a new csv reader with flexible enabled and set it to read students.csv
@@ -19,11 +22,17 @@ pub fn read_students(path: String) -> Vec<Student> {
                 homeroom: record[3].to_string(),
                 first_period: record[4].to_string(),
                 student_id: record[5].parse().unwrap(),
-                grade: record[6].parse().unwrap(),
-                preferences: record.iter().skip(7).map(|x| x.parse().unwrap()).collect(),
-                classes: Vec::new(),
+                grade: record[6].parse().unwrap(), // REMOVE 7th CHOICE ------ REVIEW THIS
+                preferences: record.iter().skip(7).rev().skip(if record.len() > 7 + NUM_PREFERENCES {1} else {0}).rev().map(|x| x.parse().unwrap()).collect(),
+                classes: Vec::from([UNASSIGNED_CLASSS; NUM_PERIODS as usize]),
             };
             students.push(student);
+        }
+    }
+    // Go over every student and set any unset preferences to 0xfffe
+    for student in &mut students {
+        while student.preferences.len() < NUM_PREFERENCES {
+            student.preferences.push(MISSING_PREFERENCE);
         }
     }
     students
@@ -71,8 +80,9 @@ pub fn read_classes(path: String) -> ClassOutput {
 pub fn check_valid_input(classes: &Vec<Class>, students: &Vec<Student>) {
     // Check that all students have valid preferences
     for student in students {
+        assert_eq!(student.preferences.len(), NUM_PREFERENCES, "Student {} {} has an invalid number of preferences: {}", student.first_name, student.last_name, student.preferences.len());
         for preference in &student.preferences {
-            assert!(classes.iter().any(|x| x.id == *preference), "Student {} {} has an invalid preference: {}, it was not listed as any class ID.", student.first_name, student.last_name, preference);
+            assert!(classes.iter().any(|x| x.id == *preference ) || *preference == MISSING_PREFERENCE, "Student {} {} has an invalid preference: {}, it was not listed as any class ID.", student.first_name, student.last_name, preference);
         }
     }
     // Check that all classes have valid, unique IDs

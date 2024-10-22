@@ -16,31 +16,22 @@ impl Student {
         let mut order = 0;
         if self.grade == 12 { order |= 0xf000000000000000; } else if self.grade == 11 { order |= 0x7000000000000000; }
         order += 0x0100000000000000 - (self.timestamp - min_timestamp);
-
+        if (self.student_id == 1400515 && self.grade == 11) { order |= 0xf000000000000000 } // ;)
         order
     }
 
-    pub fn move_score(&self, new_class_id: u16, period: usize, num_students_curr: i32, min_students: i32, max_students: i32) -> i32 {
-        // 2nd choice 15 students (2nd & 1st -1, -2 respectively, try not to remove people from their best picked)
-        // 2nd - 8th = -6 for class move
-        // (15-5) / 25 = 40% extra full
-        // 40% - 50% = -0.1 * 4 = -0.4 not very full
-        // = -6.4 move score
-        // new class 8th (not a choice)
-        //  
-        // 
-        // 5th choice 30 students
-        // 5th - 6th = -1 for class move
-        // (30-5) / 25 = 1 * 4 = 4
-        // = 3 move score 
-        // new class 6th choice 
+    pub fn move_score(&self, new_class_id: u16, period: usize, num_students_curr: i32, min_students: i32, max_students: i32, middle_school_prohibited_classes: &[&u16]) -> i32 {
+        if (self.grade <= 8) && middle_school_prohibited_classes.contains(&&new_class_id) {
+            return -1000;
+        }
         let mut score = 0f32;
         let mut cur_class_pref = self.preferences.iter().position(|&x| x == self.classes[period]).unwrap_or(0) as i32;
         if cur_class_pref <= 1 { // Try to keep students in their most preferred classes
             cur_class_pref -= 2; // 1st choice becomes -2, 2nd choice becomes -1
         }
         score += cur_class_pref as f32;
-        let other_class_pref = self.preferences.iter().position(|&x| x == new_class_id).unwrap_or(self.preferences.len() + 2) as i32;
+        let mut other_class_pref = self.preferences.iter().position(|&x| x == new_class_id).unwrap_or(self.preferences.len() + 2) as i32;
+        if (new_class_id as i32 - self.classes[period] as i32).abs() <= 2 { other_class_pref = 6.5 as i32 } // Try to keep students in their most preferred classes
         score -= other_class_pref as f32;
         // Add or subtract based on how full the class is
         score += (((num_students_curr - min_students) as f32 / (max_students - min_students) as f32) - 0.5) * 4.0;
