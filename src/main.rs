@@ -1,5 +1,6 @@
+use std::cmp::min;
 use std::collections::HashMap;
-
+use rand::random;
 use crate::read_write_data::{check_valid_input, write_student_output, write_student_satisfaction_details, MISSING_PREFERENCE};
 use crate::test::test_satisfaction;
 
@@ -66,30 +67,44 @@ fn main() {
     }
 
 
+
+
     // let class_ids = class_output.classes.iter().map(|x| x.id).collect::<Vec<u16>>();
 
     println!("Assigned all students to their choices");
 
     // If we reach this point, the student has not been assigned to any of their choices,
-    // so put them in a class below its min_students, if any, then a random non-full one as a last resort
+    // put them in a class that needs students, so put them in the min students valid class
     for student in students.iter_mut() {
         for period_num in 0..NUM_PERIODS {
             let period_num = period_num as usize;
             // If this period needs to be filled for the student, assign them to the class with the fewest students that period
             while student.classes[period_num] == 0xffff {
-                // let random_class_id = &(class_ids[random::<u32>() as usize % class_ids.len()]);
-                let class_id = *schedule.iter().filter(|x| !student.classes.contains(x.0) && !(student.grade <= 8 && MIDDLE_SCHOOL_PROHIBITED_CLASSES.contains(&x.0))).min_by_key(|x| x.1[period_num].len()).unwrap().0;
+                // let class_id = *schedule.iter().filter(|x| !student.classes.contains(x.0) && !(student.grade <= 8 && MIDDLE_SCHOOL_PROHIBITED_CLASSES.contains(&x.0))).min_by_key(|x| x.1[period_num].len()).unwrap().0;
+                // Below is used to ensure consistent results
+                let mut class_id = 0xffff;
+                // Sort the class_ids by id
+                let mut class_ids = schedule.keys().copied().collect::<Vec<u16>>();
+                class_ids.sort();
+                // Sort by the number of students in the class
+                class_ids.sort_by_key(|x| schedule[x][period_num].len());
+                for id in class_ids.iter() {
+                    if !student.classes.contains(id) && !(student.grade <= 8 && MIDDLE_SCHOOL_PROHIBITED_CLASSES.contains(&id)) {
+                        class_id = *id;
+                        break;
+                    }
+                }
                 // if the class has space, and the student hasn't had this class yet, assign them to the class (redundant check but just in case ig)
                 if schedule[&class_id][period_num].len() + 1 < max_students_per_session as usize && !student.classes.contains(&class_id) {
                     schedule.get_mut(&class_id).unwrap()[period_num].push(student.student_id);
                     student.classes[period_num] = class_id;
+
                     // continue 'student;
                 }
             }
         }
     }
 
-    println!("Assigned all students to classes with space");
 
     // Check if the schedule is valid
     // println!("{:?}", schedule);
@@ -100,16 +115,19 @@ fn main() {
     //     }
     // }
 
-    println!("Schedule is valid: {}", misc::schedule_valid(&schedule, &students, min_students_per_session, max_students_per_session, MIDDLE_SCHOOL_PROHIBITED_CLASSES));
+    // println!("Schedule is valid: {}", misc::schedule_valid(&schedule, &students, min_students_per_session, max_students_per_session, MIDDLE_SCHOOL_PROHIBITED_CLASSES));
 
     // Check for classes with too few students, and assign students, taking from the most filled classes first, and the lowest preference students to be in that class, then just the fullest classes
     // least happy in their current class + most happy in the new class + taking from the fullest classes first
-
+    let mut class_ids = schedule.keys().filter(|x1| {schedule[*x1].len() < min_students_per_session as usize}).copied().collect::<Vec<u16>>();
+    // class_ids.sort();
+    class_ids.sort_by_key(|_| rand::random::<i32>());
     // Check if each class is less than the minimum number of students
-    for class_id in &schedule.keys().copied().collect::<Vec<u16>>() {
+    for class_id in class_ids.iter(){
         for period_num in 0..(NUM_PERIODS as usize) {
             if schedule[class_id][period_num].len() < min_students_per_session as usize {
                 // Run student.move_score for each student and sort by move_score, then assign the required number of students to the class
+                students.sort_by_key(|student| student.student_id);
                 students.sort_by_key(|student| student.move_score(*class_id, period_num, schedule[&student.classes[period_num]][period_num].len() as i32, min_students_per_session, max_students_per_session, MIDDLE_SCHOOL_PROHIBITED_CLASSES));
                 students.reverse();
                 let mut student_taking_ndx = 0;
@@ -120,6 +138,7 @@ fn main() {
                         // println!("Moved student {} from class {} to class {} p.{} ({})", student.student_id, student.classes[period_num], class_id, period_num, schedule[class_id][period_num].len());
                         student.classes[period_num] = *class_id;
                         schedule.get_mut(&class_id).unwrap()[period_num].push(student.student_id);
+
                     }
                     student_taking_ndx += 1;
                 }

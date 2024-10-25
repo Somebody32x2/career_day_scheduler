@@ -14,7 +14,7 @@ pub fn read_students(path: String) -> Vec<Student> {
     for result in rdr.records() {
         let record: Vec<String> = result.unwrap().iter().map(|x| x.trim_start().to_string()).collect();
 
-        if record.len() >= 8 && record[0].parse::<u64>().is_ok() { // ignore config lines and header
+        if record.len() > 3 && record[0].parse::<u64>().is_ok() { // ignore config lines and header
             let student = Student {
                 timestamp: record[0].parse().unwrap(),
                 first_name: record[1].to_string(),
