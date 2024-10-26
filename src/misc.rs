@@ -44,6 +44,13 @@ pub fn schedule_valid(schedule: &HashMap<u16, Vec<Vec<u32>>>, i_students: &Vec<S
                 }
                 students.insert(*student_id, vec![PeriodClass { class_id: *class_id, period: i as u16 }]);
             }
+            // Check student parity - every student has this as their nth period class
+            for student_id in period {
+                if !i_students.iter().find(|x| x.student_id == *student_id).unwrap().classes[i] == *class_id {
+                    println!("Student {} is not assigned to class {} in period {}", student_id, class_id, i + 1);
+                    is_valid = false;
+                }
+            }
         }
     }
     // Check that every student is assigned to a valid class in every period
@@ -72,7 +79,13 @@ pub fn schedule_valid(schedule: &HashMap<u16, Vec<Vec<u32>>>, i_students: &Vec<S
                     is_valid = false;
                 }
             }
+            // Ensure class parity (each of this persons classes has them as a student)
+            if !schedule[class_id][i].contains(&student.student_id) {
+                println!("Student {} is not assigned to class {} in schedule in period {}", student.student_id, class_id, i + 1);
+                is_valid = false;
+            }
         }
+
     }
     // Check that no student repeats a class
     for (student_id, period_classes) in students {

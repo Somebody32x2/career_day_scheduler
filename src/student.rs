@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Student {
     pub(crate) timestamp: u64,
     pub(crate) first_name: String,
@@ -20,7 +20,7 @@ impl Student {
         order
     }
 
-    pub fn move_score(&self, new_class_id: u16, period: usize, num_students_curr: i32, min_students: i32, max_students: i32, middle_school_prohibited_classes: &[&u16]) -> i32 {
+    pub fn move_score(&self, new_class_id: u16, period: usize, num_students_curr: i32, min_students: i32, max_students: i32, middle_school_prohibited_classes: &[&u16], aggressive_senior_priority: bool) -> i32 {
         if (self.grade <= 8) && middle_school_prohibited_classes.contains(&&new_class_id) {
             return -1000;
         }
@@ -36,17 +36,29 @@ impl Student {
         // Add or subtract based on how full the class is
         score += (((num_students_curr - min_students) as f32 / (max_students - min_students) as f32) - 0.5) * 4.0;
         if self.grade >= 11 { score -= 1f32 }
+        if aggressive_senior_priority && self.grade >= 11 { score -= 13f32 - self.grade as f32 }
 
         // Double to increase resolution, round to nearest integer for sort_by_key
         (score * 2.0).round() as i32
     }
 
     pub fn satisfaction(&self) -> f32 {
+        let mut pref_copy = self.preferences.clone();
         let mut satisfaction = 0f32;
         for (_i, class_id) in self.classes.iter().enumerate() {
             assert_ne!(*class_id, 0xffff);
-            let pref = self.preferences.iter().position(|&x| x == *class_id).unwrap_or(self.preferences.len() + 2) as i32;
+            assert_ne!(*class_id, 0xfffe);
+            let mut pref = pref_copy.iter().position(|&x| x == *class_id).unwrap_or(self.preferences.len() + 2) as i32;
+            if pref == (self.preferences.len() + 2) as i32 && pref_copy.contains(&0xfffe) {
+                // Give this satisfaction of the first missing preference
+                pref = pref_copy.iter().position(|&x| x == 0xfffe).unwrap() as i32;
+                // Set the pref to this class so we don't double count
+                pref_copy[pref as usize] = *class_id;
+            }
             satisfaction += (self.preferences.len() as i32 - pref) as f32;
+        }
+        if self.grade >= 11 && satisfaction < 18f32 {
+            println!("St: {}, wants: {:?}, assigned: {:?}, sat: {}", self.student_id, self.preferences, self.classes, satisfaction);
         }
         satisfaction
     }

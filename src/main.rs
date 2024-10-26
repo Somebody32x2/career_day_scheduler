@@ -1,8 +1,6 @@
-use std::cmp::min;
-use std::collections::HashMap;
-use rand::random;
-use crate::read_write_data::{check_valid_input, write_student_output, write_student_satisfaction_details, MISSING_PREFERENCE};
+use crate::read_write_data::{check_valid_input, write_student_output, MISSING_PREFERENCE};
 use crate::test::test_satisfaction;
+use std::collections::HashMap;
 
 mod misc;
 mod read_write_data;
@@ -42,9 +40,14 @@ fn main() {
 
 
     // 1st, Assign all students to their choices, ensuring valid state
-    'period: for _class_assignment_iteration in 0..NUM_PERIODS {
-        'student: for student in students.iter_mut() {
 
+    'period: for _period in 0..NUM_PERIODS {
+        'student: for student in students.iter_mut() {
+            if aggressive_seniority_priority && student.grade < 11 {
+                continue 'period;
+            }
+
+            // Check if each period has space for the best class for the student
             // Assign the student to the first available period of their first choice (which hasn't been already used) with available space
             'choice: for choice in &student.preferences {
                 if *choice == MISSING_PREFERENCE { continue 'choice; } // Skip if the student has no preference
@@ -65,8 +68,33 @@ fn main() {
             }
         }
     }
+    // analyze_capacity(&students, schedule.clone());
+    // Go back and do the rest of the students
+    if aggressive_seniority_priority {
+        'period: for _period in 0..NUM_PERIODS {
+            'student: for student in students.iter_mut() {
+                if student.grade >= 11 {
+                    continue 'student;
+                }
 
-
+                // Check if each period has space for the best class for the student
+                // Assign the student to the first available period of their first choice (which hasn't been already used) with available space
+                'choice: for choice in &student.preferences {
+                    if *choice == MISSING_PREFERENCE { continue 'choice; } // Skip if the student has no preference
+                    if student.classes.contains(choice) { continue 'choice; } // Ensure the student isn't already assigned to this class
+                    // Check if each class has space
+                    for period_num in 0..schedule[choice].len() {
+                        // If the class has space, and the student is free, assign them to the class
+                        if schedule[choice][period_num].len() < max_students_per_session as usize && student.classes[period_num] == 0xffff && !(student.grade <= 8 && MIDDLE_SCHOOL_PROHIBITED_CLASSES.contains(&choice)) {
+                            schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
+                            student.classes[period_num] = *choice;
+                            continue 'student; // We found a period for this student, may proceed with giving the next student a period
+                        }
+                    }
+                }
+            }
+        }
+    }
 
 
     // let class_ids = class_output.classes.iter().map(|x| x.id).collect::<Vec<u16>>();
@@ -104,31 +132,24 @@ fn main() {
             }
         }
     }
-
-
-    // Check if the schedule is valid
-    // println!("{:?}", schedule);
-    // Print the number of students in each class
-    // for (class_id, periods) in &schedule {
-    //     for (i, period) in periods.iter().enumerate() {
-    //         println!("Class {} has {} students in period {}", class_id, period.len(), i);
-    //     }
-    // }
+    
 
     // println!("Schedule is valid: {}", misc::schedule_valid(&schedule, &students, min_students_per_session, max_students_per_session, MIDDLE_SCHOOL_PROHIBITED_CLASSES));
 
     // Check for classes with too few students, and assign students, taking from the most filled classes first, and the lowest preference students to be in that class, then just the fullest classes
     // least happy in their current class + most happy in the new class + taking from the fullest classes first
-    let mut class_ids = schedule.keys().filter(|x1| {schedule[*x1].len() < min_students_per_session as usize}).copied().collect::<Vec<u16>>();
-    // class_ids.sort();
-    class_ids.sort_by_key(|_| rand::random::<i32>());
+    let mut class_ids = schedule.keys().filter(|x1| { schedule[*x1].len() < min_students_per_session as usize }).copied().collect::<Vec<u16>>();
+    class_ids.sort();
+    class_ids.reverse();
+
+    // class_ids.sort_by_key(|_| rand::random::<i32>());
     // Check if each class is less than the minimum number of students
-    for class_id in class_ids.iter(){
+    for class_id in class_ids.iter() {
         for period_num in 0..(NUM_PERIODS as usize) {
             if schedule[class_id][period_num].len() < min_students_per_session as usize {
                 // Run student.move_score for each student and sort by move_score, then assign the required number of students to the class
                 students.sort_by_key(|student| student.student_id);
-                students.sort_by_key(|student| student.move_score(*class_id, period_num, schedule[&student.classes[period_num]][period_num].len() as i32, min_students_per_session, max_students_per_session, MIDDLE_SCHOOL_PROHIBITED_CLASSES));
+                students.sort_by_key(|student| student.move_score(*class_id, period_num, schedule[&student.classes[period_num]][period_num].len() as i32, min_students_per_session, max_students_per_session, MIDDLE_SCHOOL_PROHIBITED_CLASSES, aggressive_seniority_priority));
                 students.reverse();
                 let mut student_taking_ndx = 0;
                 while schedule[class_id][period_num].len() < min_students_per_session as usize {
@@ -138,32 +159,13 @@ fn main() {
                         // println!("Moved student {} from class {} to class {} p.{} ({})", student.student_id, student.classes[period_num], class_id, period_num, schedule[class_id][period_num].len());
                         student.classes[period_num] = *class_id;
                         schedule.get_mut(&class_id).unwrap()[period_num].push(student.student_id);
-
                     }
                     student_taking_ndx += 1;
                 }
             }
         }
     }
-
-    // Mostly unnecessary, but for jr/sr students, if new vacancies allows them to move to a higher preference class this period, while maintaining class min/max do so
-    // for student in students.iter_mut() {
-    //     // if student.grade >= 11 {
-    //     for period_num in 0..(NUM_PERIODS as usize) {
-    //         let cur_pref = student.preferences.iter().position(|&x| x == student.classes[period_num]).unwrap_or(0);
-    //         // Check if the student can move to a higher preference class
-    //         for choice in &student.preferences[0..cur_pref] {
-    //             // Check if the student is not already in this class, and the class has space
-    //             if student.classes.iter().position(|x| x == choice).is_none() && schedule[choice][period_num].len() < max_students_per_session as usize && schedule[choice][period_num].len() > min_students_per_session as usize {
-    //                 schedule.get_mut(&student.classes[period_num]).unwrap()[period_num].retain(|x| x != &student.student_id);
-    //                 student.classes[period_num] = *choice;
-    //                 schedule.get_mut(choice).unwrap()[period_num].push(student.student_id);
-    //                 break;
-    //             }
-    //         }
-    //     }
-    //     // }
-    // }
+    
 
     // Check if the schedule is valid
     println!("\x1B[1;4;36mSchedule is valid: {}\x1B[0m", misc::schedule_valid(&schedule, &students, min_students_per_session, max_students_per_session, MIDDLE_SCHOOL_PROHIBITED_CLASSES));
@@ -172,6 +174,7 @@ fn main() {
     write_student_output(&class_output.classes, &mut students, NUM_PERIODS, "output.csv".to_string());
 
     // write_student_satisfaction_details(&students, NUM_PERIODS, "satisfaction2.csv".to_string());
+    // analyze_capacity(&students, schedule.clone());
+    test_satisfaction(&students, true);
 
-    test_satisfaction(&students);
 }
